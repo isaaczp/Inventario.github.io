@@ -14,42 +14,22 @@
             padding: 20px;
             margin: 0;
         }
-        .catalog-container {
-            width: 200px;
-            margin-right: 20px;
-        }
-        .catalog-container h2 {
-            text-align: center;
-        }
-        .catalog-item {
-            background-color: #444;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            cursor: pointer;
-            text-align: center;
-        }
-        .catalog-item:hover {
-            background-color: #555;
-        }
-        .catalog-item.active {
-            background-color: #777;
-        }
         .button-container {
             display: flex;
             justify-content: center;
             margin-bottom: 20px;
             width: 100%;
         }
+
         .add-btn, .search-btn {
             background-color: #ff4444;
             color: #fff;
             border: none;
-            padding: 10px 20px;
+            padding: 30px 20px;
             cursor: pointer;
             border-radius: 4px;
             transition: all 0.3s ease;
-            margin: 0 10px;
+            margin: 0 200px;
         }
         .search-btn {
             background-color: #007bff;
@@ -122,6 +102,14 @@
         }
         .product-card img:hover {
             transform: scale(1.05);
+        }
+        .product-actions {
+            display: none;
+            margin-top: 10px;
+        }
+        .product-card.active .product-actions {
+            display: flex;
+            justify-content: space-between;
         }
         form label {
             display: block;
@@ -201,19 +189,19 @@
         .modal-content .button-container .close-btn:hover,
         .edit-modal .button-container .edit-btn:hover,
         .edit-modal .button-container .cancel-btn:hover {
-            background-color: #aaa;
+            background-color: #80e200;
+        }
+        .modal-content .button-container .close-btn,
+        .edit-modal .button-container .cancel-btn {
+            background-color: #ff4444;
+        }
+        .modal-content .button-container .close-btn:hover,
+        .edit-modal .button-container .cancel-btn:hover {
+            background-color: #aa3333;
         }
     </style>
 </head>
 <body>
-    <div class="catalog-container">
-        <h2>Catálogo</h2>
-        <div class="catalog-item" onclick="filterProducts('All')">Todos</div>
-        <div class="catalog-item" onclick="filterProducts('Electronics')">Electrónica</div>
-        <div class="catalog-item" onclick="filterProducts('Clothing')">Ropa</div>
-        <div class="catalog-item" onclick="filterProducts('Home')">Hogar</div>
-        <div class="catalog-item" onclick="filterProducts('Books')">Libros</div>
-    </div>
     <div style="flex: 1;">
         <div class="button-container">
             <button class="add-btn" onclick="toggleAddForm()">Agregar Producto</button>
@@ -224,13 +212,6 @@
                 <h2>Agregar Producto</h2>
                 <label for="add-name">Nombre:</label>
                 <input type="text" id="add-name" required>
-                <label for="add-category">Categoría:</label>
-                <select id="add-category" required>
-                    <option value="Electronics">Electrónica</option>
-                    <option value="Clothing">Ropa</option>
-                    <option value="Home">Hogar</option>
-                    <option value="Books">Libros</option>
-                </select>
                 <label for="add-image">Imagen:</label>
                 <input type="file" id="add-image" accept="image/*" required>
                 <div class="price-container">
@@ -248,8 +229,10 @@
                 <label for="add-quantity">Cantidad:</label>
                 <input type="number" id="add-quantity" required>
                 <button type="submit">Agregar</button>
+                <button type="button" class="close-btn" onclick="toggleAddForm()">Cerrar</button>
             </form>
         </div>
+        
         <div class="form-container" id="search-container">
             <h2>Buscar Producto</h2>
             <label for="search-name">Nombre del Producto:</label>
@@ -261,7 +244,6 @@
             <!-- Las tarjetas de productos se renderizarán aquí -->
         </div>
     </div>
-
     <div class="modal-container" id="product-modal">
         <div class="modal-content">
             <img id="modal-img" src="" alt="Producto">
@@ -273,25 +255,17 @@
             <div id="modal-description" class="description-box"></div>
             <div id="modal-quantity"></div>
             <div class="button-container">
-                <button class="edit-btn" onclick="openEditModal()">Editar</button>
+                <button class="edit-btn" onclick="openEditModal(currentEditingProductId)">Editar</button>
                 <button class="delete-btn" onclick="deleteProduct(currentEditingProductId)">Eliminar</button>
                 <button class="close-btn" onclick="closeModal()">Cerrar</button>
             </div>
         </div>
     </div>
-
     <div class="edit-modal" id="edit-modal">
         <form id="edit-form">
             <h2>Editar Producto</h2>
             <label for="edit-name">Nombre:</label>
             <input type="text" id="edit-name" required>
-            <label for="edit-category">Categoría:</label>
-            <select id="edit-category" required>
-                <option value="Electronics">Electrónica</option>
-                <option value="Clothing">Ropa</option>
-                <option value="Home">Hogar</option>
-                <option value="Books">Libros</option>
-            </select>
             <label for="edit-image">Imagen:</label>
             <input type="file" id="edit-image" accept="image/*">
             <div class="price-container">
@@ -311,185 +285,156 @@
             <div class="button-container">
                 <button type="submit" class="edit-btn">Guardar Cambios</button>
                 <button type="button" class="cancel-btn" onclick="closeEditModal()">Cancelar</button>
+                
             </div>
         </form>
     </div>
 
     <script>
+        let products = [];
         let currentEditingProductId = null;
-        let currentCategory = 'All';
+
+        document.getElementById('add-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            addProduct();
+        });
+
+        document.getElementById('edit-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            updateProduct();
+        });
 
         function toggleAddForm() {
-            const form = document.getElementById('form-container');
-            form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+            document.getElementById('form-container').style.display = 
+                document.getElementById('form-container').style.display === 'flex' ? 'none' : 'flex';
         }
 
         function toggleSearchForm() {
-            const form = document.getElementById('search-container');
-            form.style.display = form.style.display === 'none' ? 'flex' : 'none';
+            document.getElementById('search-container').style.display = 
+                document.getElementById('search-container').style.display === 'flex' ? 'none' : 'flex';
         }
 
-        function openEditModal() {
-            const modal = document.getElementById('edit-modal');
-            const product = JSON.parse(localStorage.getItem('products')).find(p => p.id === currentEditingProductId);
+        function addProduct() {
+            const name = document.getElementById('add-name').value;
+            const image = document.getElementById('add-image').files[0];
+            const purchasePrice = parseFloat(document.getElementById('add-purchase-price').value);
+            const salePrice = parseFloat(document.getElementById('add-sale-price').value);
+            const description = document.getElementById('add-description').value;
+            const quantity = parseInt(document.getElementById('add-quantity').value, 10);
 
-            document.getElementById('edit-name').value = product.name;
-            document.getElementById('edit-category').value = product.category;
-            document.getElementById('edit-purchase-price').value = product.purchasePrice;
-            document.getElementById('edit-sale-price').value = product.salePrice;
-            document.getElementById('edit-description').value = product.description;
-            document.getElementById('edit-quantity').value = product.quantity;
-            
-            modal.style.display = 'flex';
-        }
+            if (name && image && !isNaN(purchasePrice) && !isNaN(salePrice) && description && !isNaN(quantity)) {
+                const newProduct = {
+                    id: products.length + 1,
+                    name: name,
+                    image: URL.createObjectURL(image),
+                    purchasePrice: purchasePrice,
+                    salePrice: salePrice,
+                    description: description,
+                    quantity: quantity
+                };
 
-        function closeEditModal() {
-            const modal = document.getElementById('edit-modal');
-            modal.style.display = 'none';
-        }
-
-        function openModal(product) {
-            const modal = document.getElementById('product-modal');
-            document.getElementById('modal-img').src = product.image;
-            document.getElementById('modal-name').textContent = product.name;
-            document.getElementById('modal-price').textContent = `Precio de Compra: ${product.purchasePrice}`;
-            document.getElementById('modal-sale-price').textContent = `Precio de Venta: ${product.salePrice}`;
-            document.getElementById('modal-description').textContent = product.description;
-            document.getElementById('modal-quantity').textContent = `Cantidad: ${product.quantity}`;
-            modal.style.display = 'flex';
-            currentEditingProductId = product.id;
-        }
-
-        function closeModal() {
-            const modal = document.getElementById('product-modal');
-            modal.style.display = 'none';
-        }
-
-        function deleteProduct(productId) {
-            if (!confirm('¿Estás seguro de que quieres eliminar este producto?')) return;
-            const products = JSON.parse(localStorage.getItem('products')) || [];
-            const updatedProducts = products.filter(product => product.id !== productId);
-            localStorage.setItem('products', JSON.stringify(updatedProducts));
-            loadProducts(); 
-            closeModal();
+                products.push(newProduct);
+                renderProducts();
+                document.getElementById('form-container').style.display = 'none';
+                document.getElementById('add-form').reset();
+            }
         }
 
         function searchProduct() {
-            const name = document.getElementById('search-name').value.toLowerCase();
-            const products = JSON.parse(localStorage.getItem('products')) || [];
-            const filteredProducts = products.filter(product => product.name.toLowerCase().includes(name));
+            const query = document.getElementById('search-name').value.toLowerCase();
+            const filteredProducts = products.filter(product => product.name.toLowerCase().includes(query));
             renderProducts(filteredProducts);
         }
 
-        function filterProducts(category) {
-            currentCategory = category;
-            const catalogItems = document.querySelectorAll('.catalog-item');
-            catalogItems.forEach(item => {
-                item.classList.remove('active');
-                if (item.textContent === category || (category === 'All' && item.textContent === 'Todos')) {
-                    item.classList.add('active');
-                }
-            });
-            loadProducts();
-        }
-
-        document.getElementById('add-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const name = document.getElementById('add-name').value;
-            const category = document.getElementById('add-category').value;
-            const image = document.getElementById('add-image').files[0];
-            const purchasePrice = document.getElementById('add-purchase-price').value;
-            const salePrice = document.getElementById('add-sale-price').value;
-            const description = document.getElementById('add-description').value;
-            const quantity = document.getElementById('add-quantity').value;
-
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const newProduct = {
-                    id: Date.now(),
-                    name,
-                    category,
-                    image: event.target.result,
-                    purchasePrice,
-                    salePrice,
-                    description,
-                    quantity
-                };
-
-                const products = JSON.parse(localStorage.getItem('products')) || [];
-                products.push(newProduct);
-                localStorage.setItem('products', JSON.stringify(products));
-                loadProducts();
-
-                toggleAddForm();
-            };
-            reader.readAsDataURL(image);
-        });
-
-        document.getElementById('edit-form').addEventListener('submit', function(e) {
-            e.preventDefault();
-            const name = document.getElementById('edit-name').value;
-            const category = document.getElementById('edit-category').value;
-            const image = document.getElementById('edit-image').files[0];
-            const purchasePrice = document.getElementById('edit-purchase-price').value;
-            const salePrice = document.getElementById('edit-sale-price').value;
-            const description = document.getElementById('edit-description').value;
-            const quantity = document.getElementById('edit-quantity').value;
-
-            const products = JSON.parse(localStorage.getItem('products')) || [];
-            const updatedProducts = products.map(product => {
-                if (product.id === currentEditingProductId) {
-                    if (image) {
-                        const reader = new FileReader();
-                        reader.onload = function(event) {
-                            product.image = event.target.result;
-                            localStorage.setItem('products', JSON.stringify(products));
-                            loadProducts();
-                        };
-                        reader.readAsDataURL(image);
-                    }
-                    product.name = name;
-                    product.category = category;
-                    product.purchasePrice = purchasePrice;
-                    product.salePrice = salePrice;
-                    product.description = description;
-                    product.quantity = quantity;
-                }
-                return product;
-            });
-            localStorage.setItem('products', JSON.stringify(updatedProducts));
-            loadProducts();
-
-            closeEditModal();
-        });
-
-        function loadProducts() {
-            const products = JSON.parse(localStorage.getItem('products')) || [];
-            const filteredProducts = currentCategory === 'All' ? products : products.filter(product => product.category === currentCategory);
-            renderProducts(filteredProducts);
-        }
-
-        function renderProducts(products) {
+        function renderProducts(filteredProducts = products) {
             const productGrid = document.getElementById('product-grid');
             productGrid.innerHTML = '';
-            products.forEach(product => {
+
+            filteredProducts.forEach(product => {
                 const productCard = document.createElement('div');
-                productCard.classList.add('product-card');
-
-                const img = document.createElement('img');
-                img.src = product.image;
-                img.onclick = () => openModal(product);
-                
-                productCard.appendChild(img);
-                const productName = document.createElement('h3');
-                productName.textContent = product.name;
-                productCard.appendChild(productName);
-
+                productCard.className = 'product-card';
+                productCard.innerHTML = `
+                    <img src="${product.image}" alt="${product.name}" onclick="showProductDetails(${product.id})">
+                    <h3>${product.name}</h3>
+                    <div class="price-container">
+                        <div>Compra: $${product.purchasePrice.toFixed(2)}</div>
+                        <div>Venta: $${product.salePrice.toFixed(2)}</div>
+                    </div>
+                    <div class="product-actions">
+                        <button onclick="openEditModal(${product.id})">Editar</button>
+                        <button onclick="deleteProduct(${product.id})">Eliminar</button>
+                    </div>
+                `;
                 productGrid.appendChild(productCard);
             });
         }
 
-        loadProducts();
+        function showProductDetails(id) {
+            const product = products.find(p => p.id === id);
+            if (product) {
+                document.getElementById('modal-img').src = product.image;
+                document.getElementById('modal-name').innerText = product.name;
+                document.getElementById('modal-price').innerText = `Compra: $${product.purchasePrice.toFixed(2)}`;
+                document.getElementById('modal-sale-price').innerText = `Venta: $${product.salePrice.toFixed(2)}`;
+                document.getElementById('modal-description').innerText = product.description;
+                document.getElementById('modal-quantity').innerText = `Cantidad: ${product.quantity}`;
+                currentEditingProductId = id;
+                document.getElementById('product-modal').style.display = 'flex';
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('product-modal').style.display = 'none';
+        }
+
+        function openEditModal(productId) {
+            const product = products.find(p => p.id === productId);
+            if (product) {
+                document.getElementById('edit-name').value = product.name;
+                document.getElementById('edit-purchase-price').value = product.purchasePrice;
+                document.getElementById('edit-sale-price').value = product.salePrice;
+                document.getElementById('edit-description').value = product.description;
+                document.getElementById('edit-quantity').value = product.quantity;
+                document.getElementById('edit-modal').style.display = 'flex';
+                currentEditingProductId = productId;
+            }
+        }
+
+        function closeEditModal() {
+            document.getElementById('edit-modal').style.display = 'none';
+        }
+
+        function updateProduct() {
+            const name = document.getElementById('edit-name').value;
+            const image = document.getElementById('edit-image').files[0];
+            const purchasePrice = parseFloat(document.getElementById('edit-purchase-price').value);
+            const salePrice = parseFloat(document.getElementById('edit-sale-price').value);
+            const description = document.getElementById('edit-description').value;
+            const quantity = parseInt(document.getElementById('edit-quantity').value, 10);
+
+            if (name && (image || document.querySelector('#edit-image').dataset.image) && !isNaN(purchasePrice) && !isNaN(salePrice) && description && !isNaN(quantity)) {
+                const product = products.find(p => p.id === currentEditingProductId);
+                if (product) {
+                    product.name = name;
+                    if (image) {
+                        product.image = URL.createObjectURL(image);
+                    }
+                    product.purchasePrice = purchasePrice;
+                    product.salePrice = salePrice;
+                    product.description = description;
+                    product.quantity = quantity;
+                    renderProducts();
+                    closeEditModal();
+                }
+            }
+        }
+
+        function deleteProduct(id) {
+            products = products.filter(p => p.id !== id);
+            renderProducts();
+            closeModal();
+        }
     </script>
 </body>
 </html>
+
