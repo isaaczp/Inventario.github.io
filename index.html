@@ -10,26 +10,26 @@
             color: #fff;
             font-family: Arial, sans-serif;
             display: flex;
-            flex-direction: row;
+            flex-direction: column;
+            align-items: center;
             padding: 20px;
             margin: 0;
         }
         .button-container {
             display: flex;
-            justify-content: center;
-            margin-bottom: 20px;
+            justify-content: space-between;
             width: 100%;
+            max-width: 900px;
+            margin-bottom: 20px;
         }
-
         .add-btn, .search-btn {
             background-color: #ff4444;
             color: #fff;
             border: none;
-            padding: 30px 20px;
+            padding: 10px 20px;
             cursor: pointer;
             border-radius: 4px;
             transition: all 0.3s ease;
-            margin: 0 200px;
         }
         .search-btn {
             background-color: #007bff;
@@ -80,6 +80,7 @@
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
             gap: 20px;
             width: 100%;
+            max-width: 900px;
         }
         .product-card {
             background-color: #444;
@@ -102,14 +103,6 @@
         }
         .product-card img:hover {
             transform: scale(1.05);
-        }
-        .product-actions {
-            display: none;
-            margin-top: 10px;
-        }
-        .product-card.active .product-actions {
-            display: flex;
-            justify-content: space-between;
         }
         form label {
             display: block;
@@ -189,20 +182,12 @@
         .modal-content .button-container .close-btn:hover,
         .edit-modal .button-container .edit-btn:hover,
         .edit-modal .button-container .cancel-btn:hover {
-            background-color: #80e200;
-        }
-        .modal-content .button-container .close-btn,
-        .edit-modal .button-container .cancel-btn {
-            background-color: #ff4444;
-        }
-        .modal-content .button-container .close-btn:hover,
-        .edit-modal .button-container .cancel-btn:hover {
-            background-color: #aa3333;
+            background-color: #aaa;
         }
     </style>
 </head>
 <body>
-    <div style="flex: 1;">
+    <div style="flex: 1; width: 100%; max-width: 900px;">
         <div class="button-container">
             <button class="add-btn" onclick="toggleAddForm()">Agregar Producto</button>
             <button class="search-btn" onclick="toggleSearchForm()">Buscar Producto</button>
@@ -226,13 +211,12 @@
                 </div>
                 <label for="add-description">Descripción:</label>
                 <textarea id="add-description" rows="3" required></textarea>
-                <label for="add-quantity">Cantidad:</label>
+                <label for="add-quantity">Cantidad disponible:</label>
                 <input type="number" id="add-quantity" required>
                 <button type="submit">Agregar</button>
                 <button type="button" class="close-btn" onclick="toggleAddForm()">Cerrar</button>
             </form>
         </div>
-        
         <div class="form-container" id="search-container">
             <h2>Buscar Producto</h2>
             <label for="search-name">Nombre del Producto:</label>
@@ -255,7 +239,7 @@
             <div id="modal-description" class="description-box"></div>
             <div id="modal-quantity"></div>
             <div class="button-container">
-                <button class="edit-btn" onclick="openEditModal(currentEditingProductId)">Editar</button>
+                <button class="edit-btn" onclick="openEditModal()">Editar</button>
                 <button class="delete-btn" onclick="deleteProduct(currentEditingProductId)">Eliminar</button>
                 <button class="close-btn" onclick="closeModal()">Cerrar</button>
             </div>
@@ -280,18 +264,16 @@
             </div>
             <label for="edit-description">Descripción:</label>
             <textarea id="edit-description" rows="3" required></textarea>
-            <label for="edit-quantity">Cantidad:</label>
+            <label for="edit-quantity">Cantidad disponible:</label>
             <input type="number" id="edit-quantity" required>
             <div class="button-container">
-                <button type="submit" class="edit-btn">Guardar Cambios</button>
-                <button type="button" class="cancel-btn" onclick="closeEditModal()">Cancelar</button>
-                
+                <button type="submit">Guardar</button>
+                <button type="button" onclick="closeEditModal()">Cancelar</button>
             </div>
         </form>
     </div>
-
     <script>
-        let products = [];
+        let products = JSON.parse(localStorage.getItem('products')) || [];
         let currentEditingProductId = null;
 
         document.getElementById('add-form').addEventListener('submit', function(event) {
@@ -301,7 +283,7 @@
 
         document.getElementById('edit-form').addEventListener('submit', function(event) {
             event.preventDefault();
-            updateProduct();
+            saveProduct();
         });
 
         function toggleAddForm() {
@@ -317,124 +299,143 @@
         function addProduct() {
             const name = document.getElementById('add-name').value;
             const image = document.getElementById('add-image').files[0];
-            const purchasePrice = parseFloat(document.getElementById('add-purchase-price').value);
-            const salePrice = parseFloat(document.getElementById('add-sale-price').value);
+            const purchasePrice = document.getElementById('add-purchase-price').value;
+            const salePrice = document.getElementById('add-sale-price').value;
             const description = document.getElementById('add-description').value;
-            const quantity = parseInt(document.getElementById('add-quantity').value, 10);
+            const quantity = document.getElementById('add-quantity').value;
 
-            if (name && image && !isNaN(purchasePrice) && !isNaN(salePrice) && description && !isNaN(quantity)) {
-                const newProduct = {
-                    id: products.length + 1,
-                    name: name,
-                    image: URL.createObjectURL(image),
-                    purchasePrice: purchasePrice,
-                    salePrice: salePrice,
-                    description: description,
-                    quantity: quantity
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const imageUrl = e.target.result;
+
+                const product = {
+                    id: Date.now(),
+                    name,
+                    image: imageUrl,
+                    purchasePrice,
+                    salePrice,
+                    description,
+                    quantity
                 };
 
-                products.push(newProduct);
+                products.push(product);
+                localStorage.setItem('products', JSON.stringify(products));
                 renderProducts();
-                document.getElementById('form-container').style.display = 'none';
-                document.getElementById('add-form').reset();
-            }
+                toggleAddForm();
+            };
+            reader.readAsDataURL(image);
         }
 
-        function searchProduct() {
-            const query = document.getElementById('search-name').value.toLowerCase();
-            const filteredProducts = products.filter(product => product.name.toLowerCase().includes(query));
-            renderProducts(filteredProducts);
-        }
+        function renderProducts(filteredProducts = null) {
+            const grid = document.getElementById('product-grid');
+            grid.innerHTML = '';
 
-        function renderProducts(filteredProducts = products) {
-            const productGrid = document.getElementById('product-grid');
-            productGrid.innerHTML = '';
+            const productsToRender = filteredProducts || products;
 
-            filteredProducts.forEach(product => {
-                const productCard = document.createElement('div');
-                productCard.className = 'product-card';
-                productCard.innerHTML = `
-                    <img src="${product.image}" alt="${product.name}" onclick="showProductDetails(${product.id})">
-                    <h3>${product.name}</h3>
-                    <div class="price-container">
-                        <div>Compra: $${product.purchasePrice.toFixed(2)}</div>
-                        <div>Venta: $${product.salePrice.toFixed(2)}</div>
-                    </div>
-                    <div class="product-actions">
-                        <button onclick="openEditModal(${product.id})">Editar</button>
-                        <button onclick="deleteProduct(${product.id})">Eliminar</button>
-                    </div>
-                `;
-                productGrid.appendChild(productCard);
+            productsToRender.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+
+                const img = document.createElement('img');
+                img.src = product.image;
+                img.alt = product.name;
+                img.onclick = () => openModal(product);
+
+                const name = document.createElement('h3');
+                name.textContent = product.name;
+
+                const price = document.createElement('p');
+                price.textContent = `Precio de Compra: $${product.purchasePrice}`;
+
+                const salePrice = document.createElement('p');
+                salePrice.textContent = `Precio de Venta: $${product.salePrice}`;
+
+                const quantity = document.createElement('p');
+                quantity.textContent  = `Cantidad disponible: ${product.quantity}`;
+
+                card.appendChild(img);
+                card.appendChild(name);
+                card.appendChild(quantity)
+                grid.appendChild(card);
             });
         }
 
-        function showProductDetails(id) {
-            const product = products.find(p => p.id === id);
-            if (product) {
-                document.getElementById('modal-img').src = product.image;
-                document.getElementById('modal-name').innerText = product.name;
-                document.getElementById('modal-price').innerText = `Compra: $${product.purchasePrice.toFixed(2)}`;
-                document.getElementById('modal-sale-price').innerText = `Venta: $${product.salePrice.toFixed(2)}`;
-                document.getElementById('modal-description').innerText = product.description;
-                document.getElementById('modal-quantity').innerText = `Cantidad: ${product.quantity}`;
-                currentEditingProductId = id;
-                document.getElementById('product-modal').style.display = 'flex';
-            }
+        function openModal(product) {
+            currentEditingProductId = product.id;
+            document.getElementById('modal-img').src = product.image;
+            document.getElementById('modal-name').textContent = product.name;
+            document.getElementById('modal-price').textContent = `Precio de Compra: $${product.purchasePrice}`;
+            document.getElementById('modal-sale-price').textContent = `Precio de Venta: $${product.salePrice}`;
+            document.getElementById('modal-description').textContent = product.description;
+            document.getElementById('modal-quantity').textContent = `Cantidad disponible: ${product.quantity}`;
+            document.getElementById('product-modal').style.display = 'flex';
         }
 
         function closeModal() {
             document.getElementById('product-modal').style.display = 'none';
         }
 
-        function openEditModal(productId) {
-            const product = products.find(p => p.id === productId);
-            if (product) {
-                document.getElementById('edit-name').value = product.name;
-                document.getElementById('edit-purchase-price').value = product.purchasePrice;
-                document.getElementById('edit-sale-price').value = product.salePrice;
-                document.getElementById('edit-description').value = product.description;
-                document.getElementById('edit-quantity').value = product.quantity;
-                document.getElementById('edit-modal').style.display = 'flex';
-                currentEditingProductId = productId;
-            }
+        function openEditModal() {
+            const product = products.find(p => p.id === currentEditingProductId);
+
+            document.getElementById('edit-name').value = product.name;
+            document.getElementById('edit-purchase-price').value = product.purchasePrice;
+            document.getElementById('edit-sale-price').value = product.salePrice;
+            document.getElementById('edit-description').value = product.description;
+            document.getElementById('edit-quantity').value = product.quantity;
+
+            closeModal();
+            document.getElementById('edit-modal').style.display = 'flex';
         }
 
         function closeEditModal() {
             document.getElementById('edit-modal').style.display = 'none';
         }
 
-        function updateProduct() {
-            const name = document.getElementById('edit-name').value;
-            const image = document.getElementById('edit-image').files[0];
-            const purchasePrice = parseFloat(document.getElementById('edit-purchase-price').value);
-            const salePrice = parseFloat(document.getElementById('edit-sale-price').value);
-            const description = document.getElementById('edit-description').value;
-            const quantity = parseInt(document.getElementById('edit-quantity').value, 10);
+        function saveProduct() {
+            const product = products.find(p => p.id === currentEditingProductId);
 
-            if (name && (image || document.querySelector('#edit-image').dataset.image) && !isNaN(purchasePrice) && !isNaN(salePrice) && description && !isNaN(quantity)) {
-                const product = products.find(p => p.id === currentEditingProductId);
-                if (product) {
-                    product.name = name;
-                    if (image) {
-                        product.image = URL.createObjectURL(image);
-                    }
-                    product.purchasePrice = purchasePrice;
-                    product.salePrice = salePrice;
-                    product.description = description;
-                    product.quantity = quantity;
-                    renderProducts();
-                    closeEditModal();
-                }
+            product.name = document.getElementById('edit-name').value;
+            const imageFile = document.getElementById('edit-image').files[0];
+            product.purchasePrice = document.getElementById('edit-purchase-price').value;
+            product.salePrice = document.getElementById('edit-sale-price').value;
+            product.description = document.getElementById('edit-description').value;
+            product.quantity = document.getElementById('edit-quantity').value;
+
+            if (imageFile) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    product.image = e.target.result;
+                    updateProducts();
+                };
+                reader.readAsDataURL(imageFile);
+            } else {
+                updateProducts();
             }
+
+            closeEditModal();
+        }
+
+        function updateProducts() {
+            localStorage.setItem('products', JSON.stringify(products));
+            renderProducts();
         }
 
         function deleteProduct(id) {
             products = products.filter(p => p.id !== id);
+            localStorage.setItem('products', JSON.stringify(products));
             renderProducts();
             closeModal();
         }
+
+        function searchProduct() {
+            const searchName = document.getElementById('search-name').value.toLowerCase();
+            const filteredProducts = products.filter(product => product.name.toLowerCase().includes(searchName));
+            renderProducts(filteredProducts);
+            toggleSearchForm();
+        }
+
+        renderProducts();
     </script>
 </body>
 </html>
-
